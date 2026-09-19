@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { UserAuthProvider } from '@/contexts/UserAuthContext';
+import LandingPage from '@/pages/LandingPage';
 import Index from '@/pages/Index';
 import NotFound from '@/pages/NotFound';
 import LoginPage from '@/pages/user/LoginPage';
@@ -24,15 +25,12 @@ export default function App() {
       <UserAuthProvider>
         <Toaster position="top-center" richColors />
         <Routes>
-          {/* ADMIN now has its own link */}
           <Route path="/admin" element={<Index />} />
 
-          {/* HOMEPAGE is now Register */}
-          <Route path="/" element={<RegisterPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* User App */}
           <Route path="/home" element={<HomePage />} />
           <Route path="/packages" element={<PackagesPage />} />
           <Route path="/buy/:productId" element={<BuyPackagePage />} />
