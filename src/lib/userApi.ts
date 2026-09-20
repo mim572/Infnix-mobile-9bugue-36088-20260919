@@ -62,12 +62,11 @@ export async function registerUser(name: string, phone: string, password: string
 
 // ─── Login ────────────────────────────────
 export async function login(phone: string, password: string): Promise<PlatformUser> {
-  const { data, error } = await supabase.from('platform_users').select('*').eq('phone', phone).maybeSingle();
+  const passwordHash = await hashPassword(password);
+  const { data, error } = await supabase.from('platform_users').select('*').eq('phone', phone).eq('password_hash', passwordHash).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Invalid phone number or password');
   if (data.is_banned) throw new Error('Your account has been suspended. Contact support.');
-  const inputHash = await hashPassword(password);
-  if (data.password_hash !== inputHash) throw new Error('Invalid phone number or password');
   return data as PlatformUser;
 }
 export const loginUser = login;
