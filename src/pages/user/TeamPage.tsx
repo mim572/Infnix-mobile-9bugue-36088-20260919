@@ -23,7 +23,7 @@ export default function TeamPage() {
 
   if (!user) return null;
 
-  const referralLink = `${window.location.origin}/register?ref=${user.referral_code}`;
+  const referralLink = `${window.location.origin}/register?ref=${encodeURIComponent(user.referral_code)}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(referralLink);
