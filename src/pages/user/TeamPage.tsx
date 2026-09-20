@@ -31,14 +31,23 @@ export default function TeamPage() {
   };
 
   const handleShare = async () => {
-    const msg = `Join Infinix Earnings and get 7,000 UGX bonus! Invest in Infinix Mobile packages and earn daily. Use my referral link:\n${referralLink}`;
+  const msg = `Join Infinix Earnings and get 7,000 UGX bonus! Invest in Infinix Mobile packages and earn daily. Use my referral link:\n${referralLink}`;
+
+  try {
     if (navigator.share) {
-      navigator.share({ title: 'Samsung Earnings', text: msg, url: referralLink });
+      await navigator.share({
+        title: 'Infinix Earnings',
+        text: msg,
+        url: referralLink,
+      });
     } else {
       const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-      window.open(waUrl, '_blank');
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
     }
-  };
+  } catch (error) {
+    // User cancelled sharing — do nothing
+  }
+};
 
   const levelData = [
     { level: 1 as const, users: team.l1, rate: '27%', color: 'text-blue-400', bg: 'border-blue-500/30 bg-blue-500/10' },
