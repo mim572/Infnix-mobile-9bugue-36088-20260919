@@ -23,55 +23,22 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
     const stored = localStorage.getItem('sep_user');
-
-    if (!stored) {
-      setLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
-
-    let parsed: PlatformUser;
-    try {
-      parsed = JSON.parse(stored) as PlatformUser;
-    } catch (error) {
-      console.error('Invalid saved user session:', error);
-      localStorage.removeItem('sep_user');
-      setLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
-
-    // Keep the cached user available while the database refresh is running.
-    // This prevents pages from rendering a blank screen after navigation.
-    setUserState(parsed);
-
-    refreshUser(parsed.id)
-      .then(fresh => {
-        if (!mounted) return;
-
+    if (stored) {
+      const parsed = JSON.parse(stored) as PlatformUser;
+      // Refresh from DB
+      refreshUser(parsed.id).then(fresh => {
         if (fresh && !fresh.is_banned) {
           setUserState(fresh);
           localStorage.setItem('sep_user', JSON.stringify(fresh));
-        } else if (fresh?.is_banned) {
-          setUserState(null);
+        } else {
           localStorage.removeItem('sep_user');
         }
-        // If the refresh fails, retain the cached user instead of blanking the app.
-      })
-      .catch(error => {
-        console.error('Failed to refresh user session:', error);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
+        setLoading(false);
       });
-
-    return () => {
-      mounted = false;
-    };
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const setUser = (u: PlatformUser | null) => {
@@ -87,19 +54,10 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
   const reloadUser = async () => {
     if (!user) return;
-
-    try {
-      const fresh = await refreshUser(user.id);
-      if (fresh && !fresh.is_banned) {
-        setUserState(fresh);
-        localStorage.setItem('sep_user', JSON.stringify(fresh));
-      } else if (fresh?.is_banned) {
-        setUserState(null);
-        localStorage.removeItem('sep_user');
-      }
-      // Never clear the current user when the network/database refresh fails.
-    } catch (error) {
-      console.error('Failed to reload user:', error);
+    const fresh = await refreshUser(user.id);
+    if (fresh) {
+      setUserState(fresh);
+      localStorage.setItem('sep_user', JSON.stringify(fresh));
     }
   };
 
