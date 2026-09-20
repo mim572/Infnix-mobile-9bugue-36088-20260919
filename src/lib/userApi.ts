@@ -1,199 +1,611 @@
+/**
+ * userApi.ts
+ * Core business logic for Infinix Earnings Platform.
+ *
+ * Exports:
+ *   - PlatformUser (type)
+ *   - refreshUser
+ *   - loginUser  (alias: login)
+ *   - registerUser
+ *   - buyPackage
+ *   - submitWithdrawal
+ *   - submitRecharge
+ *   - redeemCode
+ *   - checkIn
+ *   - changePassword
+ */
+
 import { supabase } from '@/lib/supabase';
 import { hashPassword } from '@/lib/crypto';
 
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+
 export interface PlatformUser {
-  id: string; name: string; phone: string; password_hash: string;
-  referral_code: string; referred_by: string | null; wallet_balance: number;
-  total_earnings: number; total_withdrawals: number; referral_earnings: number;
-  daily_earnings: number; is_banned: boolean; is_admin: boolean;
-  wallet_network: string | null; wallet_phone: string | null; wallet_name: string | null;
+  id: string;
+  name: string;
+  phone: string;
+  password_hash: string;
+  referral_code: string;
+  referred_by: string | null;
+  wallet_balance: number;
+  total_earnings: number;
+  total_withdrawals: number;
+  referral_earnings: number;
+  daily_earnings: number;
+  is_banned: boolean;
+  is_admin: boolean;
+  wallet_network: string | null;
+  wallet_phone: string | null;
+  wallet_name: string | null;
   registered_at: string;
 }
 
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+function generateReferralCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+// ─────────────────────────────────────────────
+// refreshUser
+// ─────────────────────────────────────────────
+
 export async function refreshUser(userId: string): Promise<PlatformUser | null> {
-  const { data, error } = await supabase.from('platform_users').select('*').eq('id', userId).single();
-  if (error) { console.error('refreshUser error:', error); return null; }
+  const { data, error } = await supabase
+    .from('platform_users')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('refreshUser error:', error);
+    return null;
+  }
   return data as PlatformUser;
 }
-function generateReferralCode(length = 8): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = ''; for (let i = 0; i < length; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-  return code;
-}
-export async function registerUser(name: string, phone: string, password: string, referralCode?: string): Promise<PlatformUser> {
-  const { data: existing } = await supabase.from('platform_users').select('id').eq('phone', phone).maybeSingle();
-  if (existing) throw new Error('Phone number already registered.');
-  const password_hash = await hashPassword(password);
-  let referredBy: string | null = null;
+
+// ─────────────────────────────────────────────
+// registerUser
+// ─────────────────────────────────────────────
+
+export async function registerUser(
+  name: string,
+  phone: string,
+  password: string,
+  referralCode?: string
+): Promise<{ user: PlatformUser | null; error: string | null }> {
+  // Check phone uniqueness
+  const { data: existing } = await supabase
+    .from('platform_users')
+    .select('id')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (existing) {
+    return { user: null, error: 'Phone number already registered.' };
+  }
+
+  // Resolve referrer
+  let referredById: string | null = null;
   if (referralCode) {
-    const { data: referrer } = await supabase.from('platform_users').select('id').eq('referral_code', referralCode.toUpperCase()).maybeSingle();
-    if (referrer) referredBy = referrer.id;
+    const { data: referrer } = await supabase
+      .from('platform_users')
+      .select('id')
+      .eq('referral_code', referralCode)
+      .maybeSingle();
+    if (referrer) referredById = referrer.id;
   }
-  let newCode = generateReferralCode(); let codeExists = true;
-  while (codeExists) {
-    const { data: check } = await supabase.from('platform_users').select('id').eq('referral_code', newCode).maybeSingle();
-    if (!check) codeExists = false; else newCode = generateReferralCode();
+
+  const passwordHash = await hashPassword(password);
+  const myReferralCode = generateReferralCode();
+
+  const { data, error } = await supabase
+    .from('platform_users')
+    .insert({
+      name,
+      phone,
+      password_hash: passwordHash,
+      referral_code: myReferralCode,
+      referred_by: referredById,
+      wallet_balance: 7000,
+      total_earnings: 7000,
+      total_withdrawals: 0,
+      referral_earnings: 0,
+      daily_earnings: 0,
+      is_banned: false,
+      is_admin: false,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('registerUser error:', error);
+    return { user: null, error: 'Registration failed. Please try again.' };
   }
-  const { data, error } = await supabase.from('platform_users').insert({ name, phone, password_hash, referral_code: newCode, referred_by: referredBy, wallet_balance: 7000, total_earnings: 7000 }).select().single();
-  if (error) throw new Error(error.message);
-  return data as PlatformUser;
+
+  return { user: data as PlatformUser, error: null };
 }
-export const register = async (name:string, phone:string, password:string, referralCode?:string) => {
-  try { const user = await registerUser(name,phone,password,referralCode); return { user, error: null }; }
-  catch(e:any){ return { user: null, error: e.message }; }
-};
-export async function login(phone: string, password: string): Promise<PlatformUser> {
-  const { data: user, error } = await supabase.from('platform_users').select('*').eq('phone', phone).maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!user) throw new Error('Phone number not found.');
-  const password_hash = await hashPassword(password);
-  if (user.password_hash!== password_hash) throw new Error('Incorrect password.');
-  if (user.is_banned) throw new Error('Your account has been banned. Contact support.');
-  return user as PlatformUser;
+
+// ─────────────────────────────────────────────
+// login / loginUser
+// ─────────────────────────────────────────────
+
+export async function login(
+  phone: string,
+  password: string
+): Promise<{ user: PlatformUser | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('platform_users')
+    .select('*')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (error || !data) {
+    return { user: null, error: 'Phone number not found.' };
+  }
+
+  const user = data as PlatformUser;
+
+  if (user.is_banned) {
+    return { user: null, error: 'Your account has been suspended.' };
+  }
+
+  const passwordHash = await hashPassword(password);
+  if (passwordHash !== user.password_hash) {
+    return { user: null, error: 'Incorrect password.' };
+  }
+
+  return { user, error: null };
 }
+
 export const loginUser = login;
 
-// Flexible buyPackage — supports BOTH old and new call styles
-export async function buyPackage(params: any): Promise<void> {
-  let userId, userName, userPhone, productName, productGroup, amount, dailyIncome, durationDays;
-  if (params && params.user && params.product) {
-    // old style: buyPackage(user, product)
-    const user = params.user; const product = params.product;
-    userId = user.id; userName = user.name; userPhone = user.phone;
-    productName = product.name; productGroup = product.group; amount = product.amount;
-    dailyIncome = product.dailyIncome; durationDays = product.durationDays;
-  } else {
-    ({ userId, userName, userPhone, productName, productGroup, amount, dailyIncome, durationDays } = params);
+// ─────────────────────────────────────────────
+// buyPackage
+// ─────────────────────────────────────────────
+
+export async function buyPackage(
+  userId: string,
+  productName: string,
+  productGroup: string,
+  amount: number,
+  dailyIncome: number,
+  durationDays: number
+): Promise<{ success: boolean; error: string | null }> {
+  // Fetch latest balance
+  const { data: userData, error: userError } = await supabase
+    .from('platform_users')
+    .select('wallet_balance, name, phone')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !userData) {
+    return { success: false, error: 'Failed to fetch user data.' };
   }
-  const { data: user, error: fetchError } = await supabase.from('platform_users').select('wallet_balance, referred_by').eq('id', userId).single();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!user) throw new Error('User not found.');
-  if (user.wallet_balance < amount) throw new Error('Insufficient wallet balance.');
+
+  if (userData.wallet_balance < amount) {
+    return { success: false, error: 'Insufficient wallet balance.' };
+  }
+
   const now = new Date().toISOString();
   const expiryDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-  const { error: walletError } = await supabase.from('platform_users').update({ wallet_balance: user.wallet_balance - amount }).eq('id', userId);
-  if (walletError) throw new Error(walletError.message);
-  const { error: pkgError } = await supabase.from('investment_packages').insert({ user_id: userId, user_name: userName, user_phone: userPhone, product_name: productName, product_group: productGroup, amount, daily_income: dailyIncome, duration_days: durationDays, status: 'active', buy_date: now, expiry_date: expiryDate, last_income_date: now, payment_number: 'wallet', payment_network: 'Wallet' });
-  if (pkgError) throw new Error(pkgError.message);
-  if (user.referred_by) {
-    const commission = Math.floor(amount * 0.27);
-    const { data: referrer } = await supabase.from('platform_users').select('wallet_balance, referral_earnings, total_earnings').eq('id', user.referred_by).single();
-    if (referrer) await supabase.from('platform_users').update({ wallet_balance: referrer.wallet_balance + commission, referral_earnings: referrer.referral_earnings + commission, total_earnings: referrer.total_earnings + commission }).eq('id', user.referred_by);
+
+  // Insert the package (auto-activated)
+  const { error: pkgError } = await supabase.from('investment_packages').insert({
+    user_id: userId,
+    user_name: userData.name,
+    user_phone: userData.phone,
+    product_name: productName,
+    product_group: productGroup,
+    amount,
+    daily_income: dailyIncome,
+    duration_days: durationDays,
+    status: 'active',
+    buy_date: now,
+    expiry_date: expiryDate,
+    last_income_date: now,
+    payment_number: '',
+    payment_network: 'Wallet',
+    payment_proof: '',
+  });
+
+  if (pkgError) {
+    console.error('buyPackage insert error:', pkgError);
+    return { success: false, error: 'Failed to create package.' };
   }
+
+  // Deduct wallet balance
+  const { error: walletError } = await supabase
+    .from('platform_users')
+    .update({ wallet_balance: userData.wallet_balance - amount })
+    .eq('id', userId);
+
+  if (walletError) {
+    console.error('buyPackage wallet deduction error:', walletError);
+    return { success: false, error: 'Failed to deduct wallet balance.' };
+  }
+
+  // Credit L1 referral commission (27%)
+  try {
+    const { data: buyer } = await supabase
+      .from('platform_users')
+      .select('referred_by')
+      .eq('id', userId)
+      .single();
+
+    if (buyer?.referred_by) {
+      const l1Commission = Math.floor(amount * 0.27);
+      const { data: l1Referrer } = await supabase
+        .from('platform_users')
+        .select('wallet_balance, referral_earnings, referred_by')
+        .eq('id', buyer.referred_by)
+        .single();
+
+      if (l1Referrer) {
+        await supabase
+          .from('platform_users')
+          .update({
+            wallet_balance: l1Referrer.wallet_balance + l1Commission,
+            referral_earnings: l1Referrer.referral_earnings + l1Commission,
+          })
+          .eq('id', buyer.referred_by);
+
+        // L2 referral (2%)
+        if (l1Referrer.referred_by) {
+          const l2Commission = Math.floor(amount * 0.02);
+          const { data: l2Referrer } = await supabase
+            .from('platform_users')
+            .select('wallet_balance, referral_earnings, referred_by')
+            .eq('id', l1Referrer.referred_by)
+            .single();
+
+          if (l2Referrer) {
+            await supabase
+              .from('platform_users')
+              .update({
+                wallet_balance: l2Referrer.wallet_balance + l2Commission,
+                referral_earnings: l2Referrer.referral_earnings + l2Commission,
+              })
+              .eq('id', l1Referrer.referred_by);
+
+            // L3 referral (1%)
+            if (l2Referrer.referred_by) {
+              const l3Commission = Math.floor(amount * 0.01);
+              const { data: l3Referrer } = await supabase
+                .from('platform_users')
+                .select('wallet_balance, referral_earnings')
+                .eq('id', l2Referrer.referred_by)
+                .single();
+
+              if (l3Referrer) {
+                await supabase
+                  .from('platform_users')
+                  .update({
+                    wallet_balance: l3Referrer.wallet_balance + l3Commission,
+                    referral_earnings: l3Referrer.referral_earnings + l3Commission,
+                  })
+                  .eq('id', l2Referrer.referred_by);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Referral commission error (non-fatal):', err);
+  }
+
+  return { success: true, error: null };
 }
 
-export async function submitWithdrawal(params: any): Promise<void> {
-  const TAX_RATE = 0.18; const MIN_WITHDRAWAL = 7000;
-  let userId, userName, userPhone, amount, walletNetwork, walletPhone, walletName;
-  if (params && params.amount && params.user) { // old style submitWithdrawal(user, amount)
-    const user = params.user; amount = params.amount;
-    userId = user.id; userName = user.name; userPhone = user.phone;
-    walletNetwork = user.wallet_network; walletPhone = user.wallet_phone; walletName = user.wallet_name;
-  } else {
-    ({ userId, userName, userPhone, amount, walletNetwork, walletPhone, walletName } = params);
+// ─────────────────────────────────────────────
+// submitWithdrawal
+// ─────────────────────────────────────────────
+
+export async function submitWithdrawal(
+  userId: string,
+  amount: number
+): Promise<{ success: boolean; error: string | null }> {
+  const MIN_WITHDRAWAL = 7000;
+  const TAX_RATE = 0.18;
+
+  if (amount < MIN_WITHDRAWAL) {
+    return { success: false, error: `Minimum withdrawal is UGX ${MIN_WITHDRAWAL.toLocaleString()}.` };
   }
-  if (amount < MIN_WITHDRAWAL) throw new Error(`Minimum withdrawal amount is UGX ${MIN_WITHDRAWAL.toLocaleString()}.`);
-  const { data: user, error: fetchError } = await supabase.from('platform_users').select('wallet_balance').eq('id', userId).single();
-  if (fetchError) throw new Error(fetchError.message);
-  if (!user) throw new Error('User not found.');
-  if (user.wallet_balance < amount) throw new Error('Insufficient wallet balance.');
-  const tax = Math.floor(amount * TAX_RATE); const netAmount = amount - tax;
-  const { error: walletError } = await supabase.from('platform_users').update({ wallet_balance: user.wallet_balance - amount }).eq('id', userId);
-  if (walletError) throw new Error(walletError.message);
-  const { error: wdError } = await supabase.from('withdrawal_requests').insert({ user_id: userId, user_name: userName, user_phone: userPhone, amount, net_amount: netAmount, tax, wallet_network: walletNetwork, wallet_phone: walletPhone, wallet_name: walletName, status: 'pending' });
-  if (wdError) throw new Error(wdError.message);
-}
-export async function submitRecharge(params: any): Promise<void> {
-  const MIN_RECHARGE = 15000; if (params.amount < MIN_RECHARGE) throw new Error(`Minimum recharge amount is UGX ${MIN_RECHARGE.toLocaleString()}.`);
-  const { error } = await supabase.from('investment_packages').insert({ user_id: params.userId, user_name: params.userName, user_phone: params.userPhone, product_name: 'Recharge', product_group: 'Recharge', amount: params.amount, daily_income: 0, duration_days: 0, status: 'pending', payment_number: params.paymentNumber, payment_network: params.paymentNetwork, payment_proof: params.paymentProof || null });
-  if (error) throw new Error(error.message);
-}
-export async function redeemCode(userId: string, code: string): Promise<number> {
-  const { data: codeData, error: codeError } = await supabase.from('redeem_codes').select('*').eq('code', code.toUpperCase()).eq('is_active', true).maybeSingle();
-  if (codeError) throw new Error(codeError.message);
-  if (!codeData) throw new Error('Invalid or expired redeem code.');
-  if (new Date(codeData.expires_at) < new Date()) throw new Error('This redeem code has expired.');
-  if (codeData.used_count >= codeData.max_uses) throw new Error('This redeem code has reached its usage limit.');
-  const { data: usageCheck } = await supabase.from('redeem_usages').select('id').eq('code_id', codeData.id).eq('user_id', userId).maybeSingle();
-  if (usageCheck) throw new Error('You have already used this redeem code.');
-  const { data: user, error: userError } = await supabase.from('platform_users').select('wallet_balance, total_earnings').eq('id', userId).single();
-  if (userError) throw new Error(userError.message); if (!user) throw new Error('User not found.');
-  const { error: walletError } = await supabase.from('platform_users').update({ wallet_balance: user.wallet_balance + codeData.amount, total_earnings: user.total_earnings + codeData.amount }).eq('id', userId);
-  if (walletError) throw new Error(walletError.message);
-  await supabase.from('redeem_usages').insert({ code_id: codeData.id, user_id: userId });
-  await supabase.from('redeem_codes').update({ used_count: codeData.used_count + 1 }).eq('id', codeData.id);
-  return codeData.amount;
-}
-export async function checkIn(userId: string): Promise<void> {
-  const CHECKIN_REWARD = 200; const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await supabase.from('check_ins').select('id, checked_at').eq('user_id', userId).order('checked_at', { ascending: false }).limit(1).maybeSingle();
-  if (existing) { const lastDate = new Date(existing.checked_at).toISOString().split('T')[0]; if (lastDate === today) throw new Error('You have already checked in today. Come back tomorrow!'); }
-  const { data: user, error: userError } = await supabase.from('platform_users').select('wallet_balance, total_earnings, daily_earnings').eq('id', userId).single();
-  if (userError) throw new Error(userError.message); if (!user) throw new Error('User not found.');
-  const { error: walletError } = await supabase.from('platform_users').update({ wallet_balance: user.wallet_balance + CHECKIN_REWARD, total_earnings: user.total_earnings + CHECKIN_REWARD, daily_earnings: user.daily_earnings + CHECKIN_REWARD }).eq('id', userId);
-  if (walletError) throw new Error(walletError.message);
-  const { error: checkInError } = await supabase.from('check_ins').insert({ user_id: userId });
-  if (checkInError) throw new Error(checkInError.message);
-}
-export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-  const { data: user, error: fetchError } = await supabase.from('platform_users').select('password_hash').eq('id', userId).single();
-  if (fetchError) throw new Error(fetchError.message); if (!user) throw new Error('User not found.');
-  const currentHash = await hashPassword(currentPassword);
-  if (user.password_hash!== currentHash) throw new Error('Current password is incorrect.');
-  const newHash = await hashPassword(newPassword);
-  const { error: updateError } = await supabase.from('platform_users').update({ password_hash: newHash }).eq('id', userId);
-  if (updateError) throw new Error(updateError.message);
-}
-export async function updateWalletInfo(userId: string, walletNetwork: string, walletPhone: string, walletName: string): Promise<void> {
-  const { error } = await supabase.from('platform_users').update({ wallet_network: walletNetwork, wallet_phone: walletPhone, wallet_name: walletName }).eq('id', userId);
-  if (error) throw new Error(error.message);
+
+  const { data: userData, error: userError } = await supabase
+    .from('platform_users')
+    .select('wallet_balance, name, phone, wallet_network, wallet_phone, wallet_name')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !userData) {
+    return { success: false, error: 'Failed to fetch user data.' };
+  }
+
+  if (userData.wallet_balance < amount) {
+    return { success: false, error: 'Insufficient wallet balance.' };
+  }
+
+  if (!userData.wallet_network || !userData.wallet_phone || !userData.wallet_name) {
+    return { success: false, error: 'Please set your withdrawal wallet details first.' };
+  }
+
+  const tax = Math.floor(amount * TAX_RATE);
+  const netAmount = amount - tax;
+
+  const { error: insertError } = await supabase.from('withdrawal_requests').insert({
+    user_id: userId,
+    user_name: userData.name,
+    user_phone: userData.phone,
+    amount,
+    net_amount: netAmount,
+    tax,
+    wallet_network: userData.wallet_network,
+    wallet_phone: userData.wallet_phone,
+    wallet_name: userData.wallet_name,
+    status: 'pending',
+  });
+
+  if (insertError) {
+    console.error('submitWithdrawal insert error:', insertError);
+    return { success: false, error: 'Failed to submit withdrawal request.' };
+  }
+
+  // Deduct wallet balance immediately
+  const { error: walletError } = await supabase
+    .from('platform_users')
+    .update({ wallet_balance: userData.wallet_balance - amount })
+    .eq('id', userId);
+
+  if (walletError) {
+    console.error('submitWithdrawal wallet deduction error:', walletError);
+  }
+
+  return { success: true, error: null };
 }
 
-// ── FIX: Missing exports that cause your build failure ──
-export async function hasCheckedInToday(userId: string): Promise<boolean> {
+// ─────────────────────────────────────────────
+// submitRecharge
+// ─────────────────────────────────────────────
+
+export async function submitRecharge(
+  userId: string,
+  amount: number,
+  paymentNetwork: string,
+  paymentNumber: string,
+  paymentProof: string
+): Promise<{ success: boolean; error: string | null }> {
+  const MIN_RECHARGE = 15000;
+
+  if (amount < MIN_RECHARGE) {
+    return { success: false, error: `Minimum recharge is UGX ${MIN_RECHARGE.toLocaleString()}.` };
+  }
+
+  const { data: userData, error: userError } = await supabase
+    .from('platform_users')
+    .select('name, phone')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !userData) {
+    return { success: false, error: 'Failed to fetch user data.' };
+  }
+
+  const { error: insertError } = await supabase.from('investment_packages').insert({
+    user_id: userId,
+    user_name: userData.name,
+    user_phone: userData.phone,
+    product_name: 'Recharge',
+    product_group: 'Recharge',
+    amount,
+    daily_income: 0,
+    duration_days: 0,
+    status: 'pending',
+    payment_number: paymentNumber,
+    payment_network: paymentNetwork,
+    payment_proof: paymentProof,
+  });
+
+  if (insertError) {
+    console.error('submitRecharge insert error:', insertError);
+    return { success: false, error: 'Failed to submit recharge request.' };
+  }
+
+  return { success: true, error: null };
+}
+
+// ─────────────────────────────────────────────
+// redeemCode
+// ─────────────────────────────────────────────
+
+export async function redeemCode(
+  userId: string,
+  code: string
+): Promise<{ success: boolean; amount: number; error: string | null }> {
+  const { data: codeData, error: codeError } = await supabase
+    .from('redeem_codes')
+    .select('*')
+    .eq('code', code.toUpperCase())
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (codeError || !codeData) {
+    return { success: false, amount: 0, error: 'Invalid or expired redeem code.' };
+  }
+
+  if (new Date(codeData.expires_at) < new Date()) {
+    return { success: false, amount: 0, error: 'This redeem code has expired.' };
+  }
+
+  if (codeData.used_count >= codeData.max_uses) {
+    return { success: false, amount: 0, error: 'This redeem code has reached its usage limit.' };
+  }
+
+  // Check if already used by this user
+  const { data: usageData } = await supabase
+    .from('redeem_usages')
+    .select('id')
+    .eq('code_id', codeData.id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (usageData) {
+    return { success: false, amount: 0, error: 'You have already used this redeem code.' };
+  }
+
+  // Record usage
+  const { error: usageError } = await supabase.from('redeem_usages').insert({
+    code_id: codeData.id,
+    user_id: userId,
+  });
+
+  if (usageError) {
+    console.error('redeemCode usage insert error:', usageError);
+    return { success: false, amount: 0, error: 'Failed to redeem code.' };
+  }
+
+  // Increment used_count
+  await supabase
+    .from('redeem_codes')
+    .update({ used_count: codeData.used_count + 1 })
+    .eq('id', codeData.id);
+
+  // Credit wallet
+  const { data: userData } = await supabase
+    .from('platform_users')
+    .select('wallet_balance, total_earnings')
+    .eq('id', userId)
+    .single();
+
+  if (userData) {
+    await supabase
+      .from('platform_users')
+      .update({
+        wallet_balance: userData.wallet_balance + codeData.amount,
+        total_earnings: userData.total_earnings + codeData.amount,
+      })
+      .eq('id', userId);
+  }
+
+  return { success: true, amount: codeData.amount, error: null };
+}
+
+// ─────────────────────────────────────────────
+// checkIn
+// ─────────────────────────────────────────────
+
+const CHECK_IN_REWARD = 200;
+
+export async function checkIn(
+  userId: string
+): Promise<{ success: boolean; error: string | null }> {
   const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabase.from('check_ins').select('id').eq('user_id', userId).gte('checked_at', today + 'T00:00:00.000Z').lt('checked_at', today + 'T23:59:59.999Z').maybeSingle();
-  return!!data;
-}
-export const doCheckIn = checkIn;
-export const performCheckIn = checkIn;
 
-export async function getUserPackages(userId: string) {
-  const { data } = await supabase.from('investment_packages').select('*').eq('user_id', userId).order('submitted_at', { ascending: false });
-  return data || [];
+  // Check if already checked in today
+  const { data: existing } = await supabase
+    .from('check_ins')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('checked_at', `${today}T00:00:00.000Z`)
+    .maybeSingle();
+
+  if (existing) {
+    return { success: false, error: 'You have already checked in today.' };
+  }
+
+  const { error: ciError } = await supabase.from('check_ins').insert({ user_id: userId });
+
+  if (ciError) {
+    console.error('checkIn insert error:', ciError);
+    return { success: false, error: 'Check-in failed. Please try again.' };
+  }
+
+  // Credit reward
+  const { data: userData } = await supabase
+    .from('platform_users')
+    .select('wallet_balance, total_earnings')
+    .eq('id', userId)
+    .single();
+
+  if (userData) {
+    await supabase
+      .from('platform_users')
+      .update({
+        wallet_balance: userData.wallet_balance + CHECK_IN_REWARD,
+        total_earnings: userData.total_earnings + CHECK_IN_REWARD,
+      })
+      .eq('id', userId);
+  }
+
+  return { success: true, error: null };
 }
-export async function getUserRecharges(userId: string) {
-  const { data } = await supabase.from('investment_packages').select('*').eq('user_id', userId).eq('product_name', 'Recharge').order('submitted_at', { ascending: false });
-  return data || [];
+
+// ─────────────────────────────────────────────
+// changePassword
+// ─────────────────────────────────────────────
+
+export async function changePassword(
+  userId: string,
+  oldPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error: string | null }> {
+  const { data: userData, error: userError } = await supabase
+    .from('platform_users')
+    .select('password_hash')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !userData) {
+    return { success: false, error: 'Failed to fetch user data.' };
+  }
+
+  const oldHash = await hashPassword(oldPassword);
+  if (oldHash !== userData.password_hash) {
+    return { success: false, error: 'Current password is incorrect.' };
+  }
+
+  const newHash = await hashPassword(newPassword);
+  const { error: updateError } = await supabase
+    .from('platform_users')
+    .update({ password_hash: newHash })
+    .eq('id', userId);
+
+  if (updateError) {
+    console.error('changePassword update error:', updateError);
+    return { success: false, error: 'Failed to update password.' };
+  }
+
+  return { success: true, error: null };
 }
-export async function getUserWithdrawals(userId: string) {
-  const { data } = await supabase.from('withdrawal_requests').select('*').eq('user_id', userId).order('requested_at', { ascending: false });
-  return data || [];
+
+// ─────────────────────────────────────────────
+// updateWalletDetails
+// ─────────────────────────────────────────────
+
+export async function updateWalletDetails(
+  userId: string,
+  walletNetwork: string,
+  walletPhone: string,
+  walletName: string
+): Promise<{ success: boolean; error: string | null }> {
+  const { error } = await supabase
+    .from('platform_users')
+    .update({
+      wallet_network: walletNetwork,
+      wallet_phone: walletPhone,
+      wallet_name: walletName,
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('updateWalletDetails error:', error);
+    return { success: false, error: 'Failed to update wallet details.' };
+  }
+
+  return { success: true, error: null };
 }
-export async function getClaimedMissions(userId: string) {
-  const { data } = await supabase.from('mission_claims').select('mission_id').eq('user_id', userId);
-  return (data || []).map((d:any)=>d.mission_id);
-}
-export async function claimMission(userId: string, missionId: string, rewardAmount: number) {
-  const { data: existing } = await supabase.from('mission_claims').select('id').eq('user_id', userId).eq('mission_id', missionId).maybeSingle();
-  if (existing) throw new Error('Mission already claimed');
-  const { data: user } = await supabase.from('platform_users').select('wallet_balance, total_earnings').eq('id', userId).single();
-  if (user) await supabase.from('platform_users').update({ wallet_balance: user.wallet_balance + rewardAmount, total_earnings: user.total_earnings + rewardAmount }).eq('id', userId);
-  await supabase.from('mission_claims').insert({ user_id: userId, mission_id: missionId });
-}
-export async function getTeamStats(userId: string) {
-  const { data: l1Data } = await supabase.from('platform_users').select('*').eq('referred_by', userId);
-  const l1Members = (l1Data || []) as PlatformUser[]; const l1Ids = l1Members.map(m=>m.id); let l2Members: PlatformUser[] = [];
-  if (l1Ids.length>0){ const {data:l2Data}=await supabase.from('platform_users').select('*').in('referred_by',l1Ids); l2Members=(l2Data||[])as PlatformUser[]; }
-  const l2Ids=l2Members.map(m=>m.id); let l3Members:PlatformUser[]=[];
-  if(l2Ids.length>0){ const {data:l3Data}=await supabase.from('platform_users').select('*').in('referred_by',l2Ids); l3Members=(l3Data||[])as PlatformUser[]; }
-  const { data: meData } = await supabase.from('platform_users').select('referral_earnings').eq('id', userId).single();
-  return { l1Members, l2Members, l3Members, totalTeam: l1Members.length+l2Members.length+l3Members.length, totalReferralEarnings: meData?.referral_earnings||0 };
-}
-export const getTeamTree = async (userId:string)=>{ const s=await getTeamStats(userId); return{l1:s.l1Members,l2:s.l2Members,l3:s.l3Members}; };
-export const getTeamData = getTeamTree;
-export const getTeam = getTeamTree;
-export const updateWalletSettings = updateWalletInfo;
-export const updateWallet = updateWalletInfo;
-export const saveWallet = updateWalletInfo;
-export const requestWithdrawal = submitWithdrawal;
