@@ -1,44 +1,60 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BottomNav from '@/components/user/BottomNav';
 
 const PRODUCTS = [
-  { id: '1', name: 'Starter Saver', amount: 20000, daily: 1000, days: 30, total: 30000 },
-  { id: '2', name: 'Growth Plan', amount: 50000, daily: 3000, days: 30, total: 90000 },
-  { id: '3', name: 'Super Saver', amount: 100000, daily: 7000, days: 30, total: 210000 },
-  { id: '4', name: 'VIP Investor', amount: 200000, daily: 15000, days: 30, total: 450000 },
-];
+  { name: 'Infinix Smart 8', group: 'Group 1', amount: 15000, dailyIncome: 3000, durationDays: 60, image: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&q=80' },
+  { name: 'Infinix Hot 40i', group: 'Group 1', amount: 30000, dailyIncome: 7000, durationDays: 60, image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80' },
+  { name: 'Infinix Hot 40', group: 'Group 2', amount: 50000, dailyIncome: 12500, durationDays: 180, image: 'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=400&q=80' },
+  { name: 'Infinix Note 40', group: 'Group 2', amount: 100000, dailyIncome: 26000, durationDays: 180, image: 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80' },
+  { name: 'Infinix Note 40 Pro', group: 'Group 2', amount: 150000, dailyIncome: 40000, durationDays: 180, image: 'https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=400&q=80' },
+  { name: 'Infinix Zero 30', group: 'Group 3', amount: 300000, dailyIncome: 90000, durationDays: 210, image: 'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&q=80' },
+  { name: 'Infinix Zero 30 5G', group: 'Group 3', amount: 500000, dailyIncome: 160000, durationDays: 210, image: 'https://images.unsplash.com/photo-1567581935884-3349723552ca?w=400&q=80', badge: 'Popular' },
+  { name: 'Infinix Zero 40', group: 'Group 3', amount: 800000, dailyIncome: 280200, durationDays: 210, image: 'https://images.unsplash.com/photo-1609921212029-bb5a28e60960?w=400&q=80' },
+  { name: 'Infinix Zero Ultra', group: 'Group 3', amount: 1200000, dailyIncome: 450000, durationDays: 210, image: 'https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80' },
+  { name: 'Infinix GT 20 Pro', group: 'Group 3', amount: 1300000, dailyIncome: 600000, durationDays: 210, image: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&q=80' },
+  { name: 'Infinix Zero Fold VIP', group: 'Group 3', amount: 2000000, dailyIncome: 800000, durationDays: 210, image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&q=80', badge: 'VIP' },
+].map(p => ({...p, id: p.name, totalReturn: p.dailyIncome * p.durationDays }));
 
 export default function PackagesPage() {
   const navigate = useNavigate();
+  const [activeGroup, setActiveGroup] = useState('All');
+  const groups = ['All', 'Group 1', 'Group 2', 'Group 3'];
+
+  const filtered = activeGroup === 'All'? PRODUCTS : PRODUCTS.filter(p => p.group === activeGroup);
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', paddingBottom: 80, color: 'white' }}>
-      <div style={{ background: '#1a1a1a', padding: '16px 20px', borderBottom: '1px solid #333', position: 'sticky', top: 0 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 'bold' }}>Invest</h1>
-        <p style={{ fontSize: 12, color: '#888' }}>Choose package to earn daily</p>
+    <div className="min-h-screen bg-background pb-24">
+      <div className="sticky top-0 z-40 bg-card border-b border-border px-5 py-4">
+        <h1 className="text-lg font-bold text-white">Invest</h1>
+        <p className="text-muted-foreground text-xs">Choose Infinix package to earn daily</p>
+        <div className="flex gap-2 mt-3 overflow-x-auto">
+          {groups.map(g => (
+            <button key={g} onClick={() => setActiveGroup(g)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${activeGroup===g? 'bg-accent text-white' : 'bg-secondary text-muted-foreground'}`}>{g}</button>
+          ))}
+        </div>
       </div>
-      <div style={{ padding: 20, display: 'grid', gap: 16 }}>
-        {PRODUCTS.map(p => (
-          <div key={p.id} onClick={() => navigate('/buy', { state: { product: p } })} style={{ background: '#1e1e1e', border: '1px solid #333', borderRadius: 16, overflow: 'hidden' }}>
-            <div style={{ padding: 16 }}>
-              <h3 style={{ fontWeight: 'bold' }}>{p.name}</h3>
-              <p style={{ fontSize: 12, color: '#aaa' }}>{p.days} days • HOT</p>
+      <div className="px-5 py-4 grid gap-4">
+        {filtered.map(p => (
+          <div key={p.id} onClick={() => navigate(`/buy/${encodeURIComponent(p.name)}`, { state: { product: p } })} className="bg-card border border-border rounded-2xl overflow-hidden cursor-pointer hover:border-accent/50 transition">
+            <div className="relative h-36 bg-secondary">
+              <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"/>
+              <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+                <div><h3 className="text-white font-bold text-sm">{p.name}</h3><p className="text-white/70 text-xs">{p.group} • {p.durationDays} days</p></div>
+                {(p as any).badge && <div className="bg-accent text-white text-[10px] px-2 py-1 rounded-full font-bold">{(p as any).badge}</div>}
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '0 16px 16px', textAlign: 'center' as const }}>
-              <div style={{ background: '#2a2a2a', borderRadius: 12, padding: 8 }}><div style={{ fontSize: 10, color: '#888' }}>Invest</div><div style={{ color: '#60a5fa', fontWeight: 'bold', fontSize: 13 }}>{p.amount.toLocaleString()}</div></div>
-              <div style={{ background: '#2a2a2a', borderRadius: 12, padding: 8 }}><div style={{ fontSize: 10, color: '#888' }}>Daily</div><div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: 13 }}>+{p.daily.toLocaleString()}</div></div>
-              <div style={{ background: '#2a2a2a', borderRadius: 12, padding: 8 }}><div style={{ fontSize: 10, color: '#888' }}>Total</div><div style={{ color: '#facc15', fontWeight: 'bold', fontSize: 13 }}>{p.total.toLocaleString()}</div></div>
+            <div className="p-3 grid grid-cols-3 gap-2 text-center">
+              <div className="bg-secondary rounded-xl p-2"><p className="text-[10px] text-muted-foreground">Invest</p><p className="text-blue-400 font-bold text-xs">{p.amount.toLocaleString()}</p></div>
+              <div className="bg-secondary rounded-xl p-2"><p className="text-[10px] text-muted-foreground">Daily</p><p className="text-green-400 font-bold text-xs">+{p.dailyIncome.toLocaleString()}</p></div>
+              <div className="bg-secondary rounded-xl p-2"><p className="text-[10px] text-muted-foreground">Total</p><p className="text-yellow-400 font-bold text-xs">{p.totalReturn.toLocaleString()}</p></div>
             </div>
-            <div style={{ padding: '0 16px 16px' }}>
-              <button style={{ width: '100%', background: '#2563eb', color: 'white', padding: 12, borderRadius: 12, fontWeight: 'bold', border: 'none' }}>Invest Now</button>
-            </div>
+            <div className="px-3 pb-3"><button className="w-full bg-accent hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs">Invest Now</button></div>
           </div>
         ))}
       </div>
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1a1a1a', borderTop: '1px solid #333', display: 'flex', justifyContent: 'space-around', padding: '10px 0' }}>
-        <span onClick={() => navigate('/home')} style={{ color: '#888' }}>Home</span>
-        <span style={{ color: '#2563eb', fontWeight: 'bold' }}>Invest</span>
-        <span onClick={() => navigate('/team')} style={{ color: '#888' }}>Team</span>
-        <span onClick={() => navigate('/mine')} style={{ color: '#888' }}>Mine</span>
-      </div>
+      <BottomNav />
     </div>
   );
 }
