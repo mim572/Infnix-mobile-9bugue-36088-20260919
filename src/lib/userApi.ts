@@ -508,6 +508,9 @@ export async function getTeamStats(userId: string): Promise<{
   };
 }
 
+// loginUser alias for backward compatibility
+export { login as loginUser };
+
 // ── Wallet Settings ───────────────────────────────────────────
 
 export async function updateWalletSettings(
