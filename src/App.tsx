@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { UserAuthProvider } from '@/contexts/UserAuthContext';
 import LandingPage from '@/pages/LandingPage';
@@ -21,7 +21,7 @@ import MissionCenterPage from '@/pages/user/MissionCenterPage';
 
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter basename="/Infnix-mobile-9bugue-36088-20260919/">
       <UserAuthProvider>
         <Toaster position="top-center" richColors />
         <Routes>
@@ -47,6 +47,6 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </UserAuthProvider>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
