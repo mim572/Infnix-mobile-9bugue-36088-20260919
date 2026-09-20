@@ -33,6 +33,8 @@ export default function App() {
 
           <Route path="/home" element={<HomePage />} />
           <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/buy" element={<BuyPackagePage />} />
+          <Route path="/buy-package" element={<BuyPackagePage />} />
           <Route path="/buy/:productId" element={<BuyPackagePage />} />
           <Route path="/recharge" element={<RechargePage />} />
           <Route path="/withdraw" element={<WithdrawPage />} />
