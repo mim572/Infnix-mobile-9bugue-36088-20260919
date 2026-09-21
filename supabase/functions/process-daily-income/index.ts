@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
+const INCOME_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -13,9 +15,10 @@ Deno.serve(async (req) => {
     );
 
     const now = new Date();
-    const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+    const cutoff = new Date(now.getTime() - INCOME_INTERVAL_MS);
 
-    // Fetch all active investment packages (exclude RECHARGE records)
+    // buy_date is set to the approval time. Only active investment packages
+    // are eligible; RECHARGE records never earn daily income.
     const { data: packages, error: pkgErr } = await supabase
       .from('investment_packages')
       .select('*')
@@ -36,27 +39,42 @@ Deno.serve(async (req) => {
     for (const pkg of packages) {
       const expiryDate = pkg.expiry_date ? new Date(pkg.expiry_date) : null;
 
-      // Check if package has expired
-      if (expiryDate && expiryDate < now) {
-        await supabase
+      if (expiryDate && expiryDate <= now) {
+        const { error: expireErr } = await supabase
           .from('investment_packages')
           .update({ status: 'expired' })
-          .eq('id', pkg.id);
-        expiredCount++;
-        console.log(`Expired package ${pkg.id} for user ${pkg.user_id}`);
+          .eq('id', pkg.id)
+          .eq('status', 'active');
+
+        if (expireErr) {
+          console.error(`Failed to expire package ${pkg.id}: ${expireErr.message}`);
+        } else {
+          expiredCount++;
+          console.log(`Expired package ${pkg.id} for user ${pkg.user_id}`);
+        }
         continue;
       }
 
-      // Check if income is due (last_income_date is null or > 24h ago)
-      const lastIncomeDate = pkg.last_income_date ? new Date(pkg.last_income_date) : null;
-      const isDue = !lastIncomeDate || lastIncomeDate <= cutoff;
+      // last_income_date is initialized to the approval time by approvePackage.
+      // For older rows where it is null, use buy_date (also the approval time).
+      // Never treat a missing timestamp as immediately due.
+      const lastIncomeDate = pkg.last_income_date
+        ? new Date(pkg.last_income_date)
+        : pkg.buy_date
+          ? new Date(pkg.buy_date)
+          : null;
 
-      if (!isDue) {
-        console.log(`Package ${pkg.id} income not yet due.`);
+      if (!lastIncomeDate || Number.isNaN(lastIncomeDate.getTime())) {
+        console.error(`Package ${pkg.id} has no valid approval time; skipping income.`);
         continue;
       }
 
-      // Fetch user current balances
+      // The first payment is exactly one 24-hour interval after approval.
+      if (lastIncomeDate > cutoff) {
+        console.log(`Package ${pkg.id} income is not yet due.`);
+        continue;
+      }
+
       const { data: user, error: userErr } = await supabase
         .from('platform_users')
         .select('wallet_balance, total_earnings, daily_earnings')
@@ -68,13 +86,12 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Credit daily income to user
       const { error: updateUserErr } = await supabase
         .from('platform_users')
         .update({
-          wallet_balance: user.wallet_balance + pkg.daily_income,
-          total_earnings: user.total_earnings + pkg.daily_income,
-          daily_earnings: user.daily_earnings + pkg.daily_income,
+          wallet_balance: (user.wallet_balance || 0) + pkg.daily_income,
+          total_earnings: (user.total_earnings || 0) + pkg.daily_income,
+          daily_earnings: (user.daily_earnings || 0) + pkg.daily_income,
         })
         .eq('id', pkg.user_id);
 
@@ -83,11 +100,16 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Update last_income_date
-      await supabase
+      const { error: timestampErr } = await supabase
         .from('investment_packages')
         .update({ last_income_date: now.toISOString() })
-        .eq('id', pkg.id);
+        .eq('id', pkg.id)
+        .eq('status', 'active');
+
+      if (timestampErr) {
+        console.error(`Failed to update package ${pkg.id}: ${timestampErr.message}`);
+        continue;
+      }
 
       processed++;
       console.log(`Credited ${pkg.daily_income} UGX to user ${pkg.user_id} for package ${pkg.id}`);
