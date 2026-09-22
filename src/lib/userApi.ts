@@ -31,12 +31,12 @@ export interface InvestmentPackage {
   status: 'pending' | 'active' | 'expired' | 'rejected';
   buy_date: string | null;
   expiry_date: string | null;
+  last_payout_at: string | null;
   submitted_at: string;
   payment_number?: string;
   payment_network?: string;
   payment_proof?: string;
 }
-
 export interface WithdrawalRequest {
   id: string;
   user_id: string;
