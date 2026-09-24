@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investment Plans</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121a2b;
+      --card-2: #182338;
+      --muted: #a7b4c9;
+      --text: #edf3ff;
+      --primary: #7c9cff;
+      --primary-2: #6ee7c8;
+      --accent: #ffb86c;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 22px 50px rgba(39, 57, 100, 0.32);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #0d1321 0%, #111b2d 100%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .pricing-section {
+      width: 100%;
+      max-width: 1200px;
+      text-align: center;
+    }
+
+    .heading {
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(124, 156, 255, 0.12);
+      color: var(--primary-2);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      margin: 0;
+      letter-spacing: -0.05em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-top: 14px;
+    }
+
+    .pricing-grid {
+      margin-top: 42px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 24px;
+    }
+
+    .plan {
+      position: relative;
+      background: linear-gradient(180deg, rgba(18,26,43,0.98), rgba(24,35,56,0.95));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 26px 22px 24px;
+      box-shadow: var(--shadow);
+      transition: transform 0.25s ease, border-color 0.25s ease;
+      overflow: hidden;
+    }
+
+    .plan:hover {
+      transform: translateY(-8px);
+      border-color: rgba(124, 156, 255, 0.6);
+    }
+
+    .plan.featured {
+      background: linear-gradient(180deg, rgba(77,103,179,0.23), rgba(18,26,43,0.98));
+      border: 1px solid rgba(124, 156, 255, 0.8);
+    }
+
+    .badge {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: var(--accent);
+      color: #1a1724;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 7px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .plan-name {
+      margin-top: 10px;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .price {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 4px;
+      margin: 18px 0 8px;
+    }
+
+    .currency {
+      font-size: 1.1rem;
+      color: var(--muted);
+    }
+
+    .amount {
+      font-size: clamp(2.2rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+
+    .period {
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .description {
+      color: var(--muted);
+      font-size: 0.95rem;
+      min-height: 50px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0 20px;
+      text-align: left;
+    }
+
+    li {
+      color: var(--text);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.96rem;
+    }
+
+    li::before {
+      content: "✓";
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(110, 231, 200, 0.12);
+      color: var(--primary-2);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .cta {
+      display: inline-block;
+      width: 100%;
+      padding: 14px 18px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #081221;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 12px 24px rgba(108, 146, 255, 0.25);
+    }
+
+    .cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 30px rgba(108, 146, 255, 0.35);
+    }
+
+    .plan.featured .cta {
+      background: linear-gradient(135deg, var(--accent), #ffd393);
+      color: #1c1100;
+    }
+
+    @media (max-width: 980px) {
+      .pricing-grid {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="pricing-section">
+    <div class="heading">
+      <span class="eyebrow">Investment</span>
+      <h1>Choose the plan that fits your business</h1>
+      <p class="subtitle">Flexible packages for startups, growing brands, and enterprise teams.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <div class="plan">
+        <div class="plan-name">Starter</div>
+        <div class="price">
+          <span class="currency">$</span>
+          <span class="amount">29</span>
+          <span class="period">/mo</span>
+        </div>
+        <div class="description">Perfect for new businesses building their digital presence.</div>
+        <ul>
+          <li>Landing page</li>
+          <li>Basic analytics</li>
+          <li>1 contact form</li>
+          <li>Email support</li>
+        </ul>
+        <a href="#" class="cta">Get Started</a>
+      </div>
+
+      <div class="plan">
+        <div class="plan-name">Growth</div>
+        <div class="price">
+          <span class="currency">$</span>
+          <span class="amount">79</span>
+          <span class="period">/mo</span>
+        </div>
+        <div class="description">Built for businesses ready to scale traffic and conversions.</div>
+        <ul>
+          <li>Custom design</li>
+          <li>SEO optimization</li>
+          <li>Lead capture tools</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="#" class="cta">Choose Growth</a>
+      </div>
+
+      <div class="plan featured">
+        <div class="badge">Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="price">
+          <span class="currency">$</span>
+          <span class="amount">149</span>
+          <span class="period">/mo</span>
+        </div>
+        <div class="description">For brands that want premium performance and advanced features.</div>
+        <ul>
+          <li>Advanced integrations</li>
+          <li>Conversion tracking</li>
+          <li>Custom reporting</li>
+          <li>Dedicated account manager</li>
+        </ul>
+        <a href="#" class="cta">Go Pro</a>
+      </div>
+
+      <div class="plan">
+        <div class="plan-name">Enterprise</div>
+        <div class="price">
+          <span class="currency">$</span>
+          <span class="amount">299</span>
+          <span class="period">/mo</span>
+        </div>
+        <div class="description">High-touch solution for large teams with custom requirements.</div>
+        <ul>
+          <li>Custom development</li>
+          <li>Advanced security</li>
+          <li>Multi-user access</li>
+          <li>24/7 support</li>
+        </ul>
+        <a href="#" class="cta">Talk to Sales</a>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
