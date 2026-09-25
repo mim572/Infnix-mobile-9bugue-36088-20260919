@@ -10,6 +10,7 @@ export default function RedeemTab() {
   const [creating, setCreating] = useState(false);
   const [amount, setAmount] = useState('500');
   const [maxUses, setMaxUses] = useState('100');
+  const [customCode, setCustomCode] = useState('');
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -43,15 +44,22 @@ export default function RedeemTab() {
   const handleCreate = async () => {
     const amt = parseInt(amount);
     const uses = parseInt(maxUses);
+    const normalizedCode = customCode.trim().toUpperCase();
+
     if (!amt || amt < 100) { toast.error('Minimum amount is 100 UGX'); return; }
     if (!uses || uses < 1) { toast.error('At least 1 use required'); return; }
+    if (normalizedCode && !/^[A-Z0-9-]{3,20}$/.test(normalizedCode)) {
+      toast.error('Redeem code can only use letters, numbers and hyphens.');
+      return;
+    }
 
     setCreating(true);
-    const result = await createRedeemCode(amt, uses);
+    const result = await createRedeemCode(amt, uses, normalizedCode || undefined);
     if (result) {
-      toast.success('Redeem code created. Share it from the code list when ready.');
+      toast.success(normalizedCode ? 'Custom redeem code created.' : 'Redeem code created. Share it from the code list when ready.');
+      setCustomCode('');
     } else {
-      toast.error('Failed to create code.');
+      toast.error('Failed to create code. It may already exist or be invalid.');
     }
     setCreating(false);
     await refresh();
@@ -125,6 +133,19 @@ export default function RedeemTab() {
             />
           </div>
         </div>
+
+        <div className="mb-3">
+          <label className="text-xs text-muted-foreground mb-1 block">Redeem Code (optional)</label>
+          <input
+            type="text"
+            value={customCode}
+            onChange={e => setCustomCode(e.target.value.toUpperCase())}
+            className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+            placeholder="e.g. SEP-ABC123 or leave blank to auto-generate"
+            maxLength={20}
+          />
+        </div>
+
         <button
           onClick={handleCreate}
           disabled={creating}
