@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Shield, Lock, Eye, EyeOff, Plus } from 'lucide-react';
-import { adminLogin } from '@/lib/adminData';
+import { adminLogin, createRedeemCode } from '@/lib/adminData';
 import { toast } from 'sonner';
 
 interface Props {
@@ -14,6 +14,8 @@ export default function AdminLogin({ onLogin }: Props) {
   const [redeemCode, setRedeemCode] = useState('');
   const [showRedeemSection, setShowRedeemSection] = useState(false);
   const [redeemLoading, setRedeemLoading] = useState(false);
+  const [amount, setAmount] = useState('500');
+  const [maxUses, setMaxUses] = useState('1');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,21 +31,45 @@ export default function AdminLogin({ onLogin }: Props) {
     }, 600);
   };
 
-  const handleAddRedeemCode = (e: React.FormEvent) => {
+  const handleAddRedeemCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!redeemCode.trim()) {
-      toast.error('Please enter a redeem code');
+    
+    const amt = parseInt(amount);
+    const uses = parseInt(maxUses);
+
+    if (!amt || amt < 100) {
+      toast.error('Minimum amount is 100 UGX');
+      return;
+    }
+    if (!uses || uses < 1) {
+      toast.error('At least 1 use required');
+      return;
+    }
+
+    const normalizedCode = redeemCode.trim().toUpperCase();
+    if (normalizedCode && !/^[A-Z0-9-]{3,20}$/.test(normalizedCode)) {
+      toast.error('Invalid code format (alphanumeric and hyphens only, 3-20 chars)');
       return;
     }
 
     setRedeemLoading(true);
-    setTimeout(() => {
-      // TODO: Add your redeem code logic here
-      // Example: addRedeemCode(redeemCode)
-      toast.success(`Redeem code "${redeemCode}" added successfully!`);
-      setRedeemCode('');
+    try {
+      const newCode = await createRedeemCode(amt, uses, normalizedCode || undefined);
+      
+      if (newCode) {
+        toast.success(`Redeem code "${newCode.code}" created successfully!`);
+        setRedeemCode('');
+        setAmount('500');
+        setMaxUses('1');
+        setShowRedeemSection(false);
+      } else {
+        toast.error('Failed to create redeem code. Code may already exist.');
+      }
+    } catch (error) {
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
       setRedeemLoading(false);
-    }, 600);
+    }
   };
 
   return (
@@ -126,31 +152,62 @@ export default function AdminLogin({ onLogin }: Props) {
 
             {showRedeemSection && (
               <form onSubmit={handleAddRedeemCode} className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-2">
+                      Amount (UGX)
+                    </label>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={e => setAmount(e.target.value)}
+                      placeholder="500"
+                      min="100"
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-2">
+                      Max Uses
+                    </label>
+                    <input
+                      type="number"
+                      value={maxUses}
+                      onChange={e => setMaxUses(e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Redeem Code
+                  <label className="block text-xs font-medium text-foreground mb-2">
+                    Custom Code (Optional)
                   </label>
                   <input
                     type="text"
                     value={redeemCode}
                     onChange={e => setRedeemCode(e.target.value)}
-                    placeholder="Enter new redeem code"
-                    className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    required
+                    placeholder="e.g., SUMMER-2024 or auto-generate"
+                    className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty to auto-generate</p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={redeemLoading || !redeemCode}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-2 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                  disabled={redeemLoading}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm"
                 >
                   {redeemLoading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
                       <Plus className="w-4 h-4" />
-                      Add Code
+                      Create Code
                     </>
                   )}
                 </button>
