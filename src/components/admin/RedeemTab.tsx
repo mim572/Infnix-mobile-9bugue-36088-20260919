@@ -11,6 +11,7 @@ export default function RedeemTab() {
   const [amount, setAmount] = useState('500');
   const [maxUses, setMaxUses] = useState('100');
   const [customCode, setCustomCode] = useState('');
+  const [lastCreatedCode, setLastCreatedCode] = useState<RedeemCode | null>(null);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -56,9 +57,11 @@ export default function RedeemTab() {
     setCreating(true);
     const result = await createRedeemCode(amt, uses, normalizedCode || undefined);
     if (result) {
+      setLastCreatedCode(result);
       toast.success(normalizedCode ? 'Custom redeem code created.' : 'Redeem code created. Share it from the code list when ready.');
       setCustomCode('');
     } else {
+      setLastCreatedCode(null);
       toast.error('Failed to create code. It may already exist or be invalid.');
     }
     setCreating(false);
@@ -163,6 +166,29 @@ export default function RedeemTab() {
           <Plus className="w-4 h-4" /> {creating ? 'Creating...' : 'Create Redeem Code'}
         </button>
       </div>
+
+      {lastCreatedCode && (
+        <div className="bg-accent/5 border border-accent/40 rounded-2xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-white">Created Redeem Code</h3>
+            <span className="text-xs text-accent bg-accent/10 px-2 py-1 rounded-full">Ready to share</span>
+          </div>
+
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-mono font-bold text-white text-xl tracking-widest">{lastCreatedCode.code}</span>
+            <button onClick={() => handleCopy(lastCreatedCode.code)} className="text-muted-foreground hover:text-accent transition-colors" title="Copy code">
+              <Copy className="w-4 h-4" />
+            </button>
+            <button onClick={() => handleShare(lastCreatedCode)} className="text-muted-foreground hover:text-accent transition-colors" title="Share on Telegram">
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            {lastCreatedCode.amount.toLocaleString()} UGX • Max {lastCreatedCode.max_uses} uses • Expires {new Date(lastCreatedCode.expires_at).toLocaleString()}
+          </p>
+        </div>
+      )}
 
       {codes.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
