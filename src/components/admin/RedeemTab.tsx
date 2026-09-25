@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Copy, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Copy, Clock, CheckCircle, XCircle, Share2 } from 'lucide-react';
 import { getRedeems, createRedeemCode, deleteRedeemCode, toggleRedeemCode } from '@/lib/adminData';
 import type { RedeemCode } from '@/types/admin';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 export default function RedeemTab() {
   const [codes, setCodes] = useState<RedeemCode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [amount, setAmount] = useState('500');
   const [maxUses, setMaxUses] = useState('100');
   const [now, setNow] = useState(new Date());
@@ -24,20 +25,46 @@ export default function RedeemTab() {
 
   useEffect(() => { refresh(); }, []);
 
+  const getShareUrl = (code: RedeemCode) => {
+    const message = [
+      '🎁 REDEEM CODE',
+      '',
+      `💰 Amount: UGX ${code.amount.toLocaleString()}`,
+      `🔑 Code: ${code.code}`,
+      `👥 Available uses: ${code.max_uses}`,
+      '⏰ Valid for 15 minutes only!',
+      '',
+      'Open the app and redeem it now!'
+    ].join('\n');
+
+    return `https://t.me/share/url?url=${encodeURIComponent(code.code)}&text=${encodeURIComponent(message)}`;
+  };
+
   const handleCreate = async () => {
     const amt = parseInt(amount);
     const uses = parseInt(maxUses);
     if (!amt || amt < 100) { toast.error('Minimum amount is 100 UGX'); return; }
     if (!uses || uses < 1) { toast.error('At least 1 use required'); return; }
+
+    setCreating(true);
     const result = await createRedeemCode(amt, uses);
-    if (result) toast.success('Redeem code created! Share it on Telegram within 15 minutes.');
-    else toast.error('Failed to create code.');
+    if (result) {
+      toast.success('Redeem code created. Choose your Telegram group to share it.');
+      window.open(getShareUrl(result), '_blank', 'noopener,noreferrer');
+    } else {
+      toast.error('Failed to create code.');
+    }
+    setCreating(false);
     refresh();
   };
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
     toast.success('Code copied to clipboard!');
+  };
+
+  const handleShare = (code: RedeemCode) => {
+    window.open(getShareUrl(code), '_blank', 'noopener,noreferrer');
   };
 
   const handleDelete = async (id: string) => {
@@ -101,9 +128,10 @@ export default function RedeemTab() {
         </div>
         <button
           onClick={handleCreate}
-          className="w-full bg-accent hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+          disabled={creating}
+          className="w-full bg-accent hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <Plus className="w-4 h-4" /> Generate & Share on Telegram
+          <Share2 className="w-4 h-4" /> {creating ? 'Creating...' : 'Generate & Share on Telegram'}
         </button>
       </div>
 
@@ -124,9 +152,14 @@ export default function RedeemTab() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-white text-lg tracking-widest">{code.code}</span>
-                      <button onClick={() => handleCopy(code.code)} className="text-muted-foreground hover:text-accent transition-colors">
+                      <button onClick={() => handleCopy(code.code)} className="text-muted-foreground hover:text-accent transition-colors" title="Copy code">
                         <Copy className="w-4 h-4" />
                       </button>
+                      {!isExpired && (
+                        <button onClick={() => handleShare(code)} className="text-muted-foreground hover:text-accent transition-colors" title="Share on Telegram">
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                     <p className="text-muted-foreground text-sm">{code.amount.toLocaleString()} UGX • Max {code.max_uses} uses • Used {code.used_count}</p>
                   </div>
