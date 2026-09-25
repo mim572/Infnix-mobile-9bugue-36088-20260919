@@ -49,13 +49,12 @@ export default function RedeemTab() {
     setCreating(true);
     const result = await createRedeemCode(amt, uses);
     if (result) {
-      toast.success('Redeem code created. Choose your Telegram group to share it.');
-      window.open(getShareUrl(result), '_blank', 'noopener,noreferrer');
+      toast.success('Redeem code created. Share it from the code list when ready.');
     } else {
       toast.error('Failed to create code.');
     }
     setCreating(false);
-    refresh();
+    await refresh();
   };
 
   const handleCopy = (code: string) => {
@@ -131,7 +130,7 @@ export default function RedeemTab() {
           disabled={creating}
           className="w-full bg-accent hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <Share2 className="w-4 h-4" /> {creating ? 'Creating...' : 'Generate & Share on Telegram'}
+          <Plus className="w-4 h-4" /> {creating ? 'Creating...' : 'Create Redeem Code'}
         </button>
       </div>
 
