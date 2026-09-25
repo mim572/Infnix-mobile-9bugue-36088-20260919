@@ -1,0 +1,12 @@
+{
+  "functions": [
+    {
+      "name": "process-daily-income",
+      "invokeConfig": {
+        "timeout": 300,
+        "memory": 256,
+        "runtime": "deno1.x"
+      }
+    }
+  ]
+}
