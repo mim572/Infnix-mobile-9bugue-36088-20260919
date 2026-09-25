@@ -113,8 +113,9 @@ export default function RedeemTab() {
         </h3>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Amount (UGX)</label>
+            <label htmlFor="redeem-amount" className="text-xs text-muted-foreground mb-1 block">Amount (UGX)</label>
             <input
+              id="redeem-amount"
               type="number"
               value={amount}
               onChange={e => setAmount(e.target.value)}
@@ -123,8 +124,9 @@ export default function RedeemTab() {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Max Uses</label>
+            <label htmlFor="redeem-max-uses" className="text-xs text-muted-foreground mb-1 block">Max Uses</label>
             <input
+              id="redeem-max-uses"
               type="number"
               value={maxUses}
               onChange={e => setMaxUses(e.target.value)}
@@ -134,16 +136,23 @@ export default function RedeemTab() {
           </div>
         </div>
 
-        <div className="mb-3">
-          <label className="text-xs text-muted-foreground mb-1 block">Redeem Code (optional)</label>
+        <div className="mb-3 rounded-xl border border-accent/30 bg-accent/5 p-3">
+          <label htmlFor="custom-redeem-code" className="text-sm font-medium text-white mb-1 block">
+            Custom Redeem Code <span className="text-muted-foreground font-normal">(optional)</span>
+          </label>
           <input
+            id="custom-redeem-code"
             type="text"
             value={customCode}
             onChange={e => setCustomCode(e.target.value.toUpperCase())}
-            className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-            placeholder="e.g. SEP-ABC123 or leave blank to auto-generate"
+            className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-white text-sm uppercase focus:outline-none focus:ring-2 focus:ring-accent/50"
+            placeholder="e.g. SEP-ABC123"
             maxLength={20}
+            autoComplete="off"
           />
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Enter 3–20 letters, numbers, or hyphens. Leave blank to generate a code automatically.
+          </p>
         </div>
 
         <button
