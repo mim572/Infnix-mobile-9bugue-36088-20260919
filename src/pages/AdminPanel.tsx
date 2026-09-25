@@ -31,7 +31,7 @@ const EMPTY_STATS: AdminStats = {
 };
 
 export default function AdminPanel({ onLogout }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('recharges');
+  const [activeTab, setActiveTab] = useState<Tab>('redeem');
   const [stats, setStats] = useState<AdminStats>(EMPTY_STATS);
   const [runningIncome, setRunningIncome] = useState(false);
 
@@ -60,10 +60,10 @@ export default function AdminPanel({ onLogout }: Props) {
   };
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
+    { key: 'redeem', label: 'Create Redeem Code', icon: Gift },
     { key: 'recharges', label: 'Recharges', icon: Banknote },
     { key: 'payments', label: 'Packages', icon: CreditCard },
     { key: 'withdrawals', label: 'Withdrawals', icon: ArrowDownCircle },
-    { key: 'redeem', label: 'Redeem', icon: Gift },
     { key: 'packages', label: 'All Pkgs', icon: Package },
     { key: 'users', label: 'Users', icon: Users },
     { key: 'missions', label: 'Missions', icon: Trophy },
