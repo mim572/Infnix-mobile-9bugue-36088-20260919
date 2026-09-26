@@ -108,7 +108,7 @@ export default function RedeemPage() {
             <p className="text-white text-sm font-semibold">Get Codes on Telegram</p>
           </div>
           <a
-            href="https://t.me/+adk1usHyKF4yYzQ0"
+            href="https://t.me/+5hk-VcavLmwyMzFk"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-4 py-4 hover:bg-secondary/50 transition-colors border-b border-border"
@@ -117,12 +117,12 @@ export default function RedeemPage() {
               <ExternalLink className="w-4 h-4 text-blue-400" />
             </div>
             <div className="flex-1">
-              <p className="text-white text-sm font-medium">Official Support Channel</p>
+              <p className="text-white text-sm font-medium">Join Official Telegram Support</p>
               <p className="text-muted-foreground text-xs">Admin posts gift codes here</p>
             </div>
           </a>
           <a
-            href="https://t.me/+kH7QuzE6dp0xZmVk"
+            href="https://t.me/+5hk-VcavLmwyMzFk"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-4 py-4 hover:bg-secondary/50 transition-colors"
