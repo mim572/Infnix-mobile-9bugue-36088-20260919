@@ -1,6 +1,3 @@
-
-
-
 import { useState, useEffect, useCallback } from 'react';
 import { LogOut, Shield, CreditCard, ArrowDownCircle, Gift, Package, Users, Banknote, Play, Trophy, Megaphone } from 'lucide-react';
 import { adminLogout, getAdminStats, processDailyIncome } from '@/lib/adminData';
