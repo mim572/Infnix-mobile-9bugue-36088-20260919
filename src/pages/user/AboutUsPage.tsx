@@ -251,7 +251,7 @@ export default function AboutUsPage() {
               <ExternalLink className="w-4 h-4 text-blue-400" />
             </div>
             <div className="flex-1">
-              <p className="text-white text-sm font-semibold">Official Support Channel</p>
+              <p className="text-white text-sm font-semibold">Join Official Telegram Support</p>
               <p className="text-muted-foreground text-xs">Direct help from the admin team</p>
             </div>
           </a>
