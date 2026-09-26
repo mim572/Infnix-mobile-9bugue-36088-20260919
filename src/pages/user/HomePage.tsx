@@ -289,9 +289,6 @@ export default function HomePage() {
         <div className="bg-card border border-border rounded-2xl p-4">
           <h3 className="font-semibold text-white mb-3">Platform Rules</h3>
           <div className="space-y-2 text-xs text-muted-foreground">{['💰 Min. Deposit: 15,000 UGX | Min. Withdrawal: 7,000 UGX','📈 Earn daily income automatically once package is approved','👥 Referral commissions: up to 27% on direct referrals','✅ Daily check-in reward: +200 UGX','💸 Tax: 18% applies on withdrawal amounts'].map((rule, i) => <p key={i}>{rule}</p>)}</div>
-          <a href="https://t.me/+5hk-VcavLmwyMzFk" target="_blank" rel="noopener noreferrer" className="mt-3 w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 font-medium py-3 rounded-xl text-sm transition-colors">
-            Join Official Telegram Channel
-          </a>
         </div>
       </div>
       <BottomNav />
