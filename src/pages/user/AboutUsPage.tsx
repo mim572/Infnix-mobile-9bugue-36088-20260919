@@ -256,7 +256,7 @@ export default function AboutUsPage() {
             </div>
           </a>
           <a
-            href="https://t.me/+kH7QuzE6dp0xZmVk"
+            href="https://t.me/+5hk-VcavLmwyMzFk"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-4 py-4 hover:bg-secondary/50 transition-colors border-b border-border"
