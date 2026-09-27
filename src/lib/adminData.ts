@@ -1,1 +1,154 @@
-ggg
+import { supabase } from '@/lib/supabase';
+import type { AdminStats } from '@/types/admin';
+export interface RedeemCode { id: string; code: string; amount: number; max_uses: number; used_count: number; is_active: boolean; expires_at: string; created_at: string; }
+
+// Auth
+export function isAdminLoggedIn(){return!!localStorage.getItem('admin_session')}
+export function adminLogin(p:string){if(p==='admin123'){localStorage.setItem('admin_session','true');return true}return false}
+export function adminLogout(){localStorage.removeItem('admin_session');localStorage.removeItem('admin_logged')}
+
+export async function getAdminStats(): Promise<AdminStats> {
+ try{
+  const {data:users}=await supabase.from('platform_users').select('id');
+  const {data:packages}=await supabase.from('investment_packages').select('status,amount,product_name');
+  const {data:deposits}=await supabase.from('investment_packages').select('amount').eq('product_name','RECHARGE').eq('status','active');
+  const {data:withdrawals}=await supabase.from('withdrawal_requests').select('amount,status');
+  return {
+    totalUsers: users?.length||0,
+    totalActivePackages: packages?.filter((p:any)=>p.status==='active').length || 0,
+    totalPendingPackages: packages?.filter((p:any)=>p.status==='pending').length||0,
+    totalEarningsDistributed:0,
+    totalDeposits: deposits?.reduce((s:any,r:any)=>s+(r.amount||0),0)||0,
+    totalWithdrawals: withdrawals?.filter((w:any)=>w.status==='approved').reduce((s:any,r:any)=>s+(r.amount||0),0)||0,
+    pendingWithdrawals: withdrawals?.filter((w:any)=>w.status==='pending').length||0,
+    totalReferralEarnings:0
+  };
+ }catch(e){
+  return {totalUsers:0,totalActivePackages:0,totalPendingPackages:0,totalEarningsDistributed:0,totalDeposits:0,totalWithdrawals:0,pendingWithdrawals:0,totalReferralEarnings:0}
+ }
+}
+export async function processDailyIncome(){try{const{error}=await supabase.rpc('process_daily_income');if(error)return{error:error.message,message:''};return{message:'Daily income processed',error:''}}catch(e:any){return{error:e.message,message:''}}}
+
+async function attachUsers(list:any[]){
+  if(!list || list.length===0) return [];
+  const ids=[...new Set(list.map((x:any)=>x.user_id).filter(Boolean))];
+  if(ids.length===0) return list;
+  const {data:users}=await supabase.from('platform_users').select('*').in('id',ids);
+  const map=new Map((users||[]).map((u:any)=>[u.id,u]));
+  return list.map((x:any)=>{
+    const u:any=map.get(x.user_id)||{};
+    return {...x, user_email: x.user_email || u.email, user_phone: x.user_phone || u.phone || u.mobile || u.whatsapp, user_name: x.user_name || u.full_name || u.username || u.name || u.email, user_joined: u.created_at, user_wallet: u.wallet_balance, user_referral_code: u.referral_code || u.own_referral_code, referred_by: u.referred_by, user_obj: u}
+  });
+}
+
+export async function getPackages(status?: string){
+ let q = supabase.from('investment_packages').select('*').order('submitted_at',{ascending:false});
+ if(status && status!== 'all'){ q = q.eq('status', status); }
+ const{data, error} = await q;
+ if(error){ return [] }
+ return attachUsers(data||[]);
+}
+export const getAllPackages=getPackages;
+export const getPayments=getPackages;
+export async function updatePackageStatus(id:string,status:string){const{error}=await supabase.from('investment_packages').update({status}).eq('id',id);if(error)throw error}
+export async function approvePackage(id:string){return updatePackageStatus(id,'active')}
+export async function rejectPackage(id:string){return updatePackageStatus(id,'rejected')}
+export async function deletePackage(id:string){const{error}=await supabase.from('investment_packages').delete().eq('id',id);if(error)throw error}
+export async function extendPackage(id:string,days:number=30){try{const{data}=await supabase.from('investment_packages').select('expires_at,end_date').eq('id',id).single();const base=(data as any)?.expires_at||(data as any)?.end_date||new Date().toISOString();const nd=new Date(base);nd.setDate(nd.getDate()+days);await supabase.from('investment_packages').update({expires_at:nd.toISOString(),end_date:nd.toISOString()}).eq('id',id)}catch{}}
+
+export async function getUsers(){const{data}=await supabase.from('platform_users').select('*').order('created_at',{ascending:false});return data||[]}
+export const getAllUsers=getUsers;
+export async function deleteUser(id:string){const{error}=await supabase.from('platform_users').delete().eq('id',id);if(error)throw error}
+
+// FIXED: Ban toggle
+export async function banUser(id:string, isCurrentlyBanned?:boolean){
+  try{
+    if(isCurrentlyBanned){
+      await supabase.from('platform_users').update({is_blocked:false,is_banned:false}).eq('id',id);
+    }else{
+      await supabase.from('platform_users').update({is_blocked:true,is_banned:true}).eq('id',id);
+    }
+  }catch(e){console.error(e)}
+}
+export async function unbanUser(id:string){try{await supabase.from('platform_users').update({is_blocked:false,is_banned:false}).eq('id',id)}catch{}}
+export async function blockUser(id:string){return banUser(id)}
+export async function unblockUser(id:string){return unbanUser(id)}
+
+// FIXED: Add / Deduct now working
+export async function adjustUserBalance(userId:string, amount:number, type?: 'add' | 'deduct'){
+  try{
+    const{data:user}=await supabase.from('platform_users').select('wallet_balance').eq('id',userId).single();
+    if(!user) return {error:'User not found'};
+    let nb = user.wallet_balance || 0;
+    const amt = Math.abs(amount);
+    if(type === 'deduct'){ nb = nb - amt; }
+    else if(type === 'add'){ nb = nb + amt; }
+    else { nb = nb + amount; }
+    if(nb < 0) nb = 0;
+    const{error}=await supabase.from('platform_users').update({wallet_balance:nb}).eq('id',userId);
+    if(error) return {error:error.message};
+    return {error:''};
+  }catch(e:any){return {error:e.message || 'Failed'};}
+}
+export async function addUserBalance(id:string,amt:number){return adjustUserBalance(id,Math.abs(amt),'add')}
+export async function deductUserBalance(id:string,amt:number){return adjustUserBalance(id,Math.abs(amt),'deduct')}
+
+export async function getRecharges(status?: string){
+  let query = supabase.from('investment_packages').select('*').eq('product_name','RECHARGE').order('submitted_at',{ascending:false});
+  if(status === 'pending'){ query = query.eq('status','pending') }
+  const {data, error} = await query;
+  if(error){ return [] }
+  return attachUsers(data || [])
+}
+export const getRechargeRequests=getRecharges;
+export async function updateRechargeStatus(id:string,status:string){const{error}=await supabase.from('investment_packages').update({status}).eq('id',id);if(error)throw error}
+export async function approveRecharge(id:string){
+  try{
+    const {data:req} = await supabase.from('investment_packages').select('*').eq('id',id).single();
+    if(!req) throw new Error('Request not found');
+    await supabase.from('investment_packages').update({status:'active', buy_date: new Date().toISOString()}).eq('id',id);
+    if(req.amount && req.user_id){
+      const {data:user} = await supabase.from('platform_users').select('wallet_balance').eq('id', req.user_id).single();
+      if(user){
+        const newBal = (user.wallet_balance || 0) + req.amount;
+        await supabase.from('platform_users').update({wallet_balance:newBal}).eq('id', req.user_id);
+      }
+    }
+  }catch(e){console.error(e); throw e;}
+}
+export async function rejectRecharge(id:string){return updateRechargeStatus(id,'rejected')}
+export async function deleteRecharge(id:string){const{error}=await supabase.from('investment_packages').delete().eq('id',id);if(error)throw error}
+
+export async function getWithdrawals(){const{data}=await supabase.from('withdrawal_requests').select('*').order('created_at',{ascending:false});return attachUsers(data||[])}
+export const getWithdrawalRequests=getWithdrawals;
+export async function updateWithdrawalStatus(id:string,status:string){const{error}=await supabase.from('withdrawal_requests').update({status}).eq('id',id);if(error)throw error}
+
+export async function approveWithdrawal(id:string){
+  try{
+    const {data:req} = await supabase.from('withdrawal_requests').select('*').eq('id',id).single();
+    if(!req) throw new Error('Request not found');
+    if(req.status === 'approved') return;
+    if(req.user_id && req.amount){
+      const {data:user} = await supabase.from('platform_users').select('wallet_balance').eq('id', req.user_id).single();
+      if(user){
+        const newBal = (user.wallet_balance || 0) - req.amount;
+        await supabase.from('platform_users').update({wallet_balance: newBal < 0? 0 : newBal}).eq('id', req.user_id);
+      }
+    }
+    const {error} = await supabase.from('withdrawal_requests').update({status:'approved'}).eq('id',id);
+    if(error) throw error;
+  }catch(e){console.error(e); throw e;}
+}
+export async function rejectWithdrawal(id:string){return updateWithdrawalStatus(id,'rejected')}
+export async function deleteWithdrawal(id:string){const{error}=await supabase.from('withdrawal_requests').delete().eq('id',id);if(error)throw error}
+export const deleteWithdrawals=deleteWithdrawal; export const deleteRecharges=deleteRecharge;
+export async function getMissions(){try{const{data}=await supabase.from('missions').select('*');return data||[]}catch{return[]}}
+export async function createMission(d:any){try{const{data,error}=await supabase.from('missions').insert(d).select().single();if(error)throw error;return data}catch{return null}}
+export async function deleteMission(id:string){const{error}=await supabase.from('missions').delete().eq('id',id);if(error)throw error}
+export async function sendBroadcast(_m:string){} export async function getBroadcasts(){return[]}
+export async function getRedeems():Promise<RedeemCode[]>{const{data}=await supabase.from('redeem_codes').select('*').order('created_at',{ascending:false});return (data as RedeemCode[])||[]}
+export async function createRedeemCode(amount:number,maxUses:number,customCode?:string):Promise<RedeemCode|null>{const c=(customCode||'').trim().toUpperCase()||'SEP-'+Math.random().toString(36).substring(2,8).toUpperCase();if(!/^[A-Z0-9-]{3,20}$/.test(c))return null;const{data:ex}=await supabase.from('redeem_codes').select('id').eq('code',c).maybeSingle();if(ex)return null;const exp=new Date(Date.now()+15*60*1000).toISOString();const{data,error}=await supabase.from('redeem_codes').insert({code:c,amount,max_uses:maxUses,used_count:0,is_active:true,expires_at:exp}).select().single();if(error)return null;return data as RedeemCode}
+export async function deleteRedeemCode(id:string){const{error}=await supabase.from('redeem_codes').delete().eq('id',id);if(error)throw new Error(error.message)}
+export async function toggleRedeemCode(id:string,cur:boolean){const{error}=await supabase.from('redeem_codes').update({is_active:!cur}).eq('id',id);if(error)throw new Error(error.message)}
+async function creditReferralCommission(userId:string,amount:number){const RATES=[0.27,0.02,0.01];const{data:buyer}=await supabase.from('platform_users').select('referred_by').eq('id',userId).single();if(!buyer?.referred_by)return;let cur=buyer.referred_by;let lvl=0;while(cur&&lvl<3){const{data:ref}=await supabase.from('platform_users').select('id,wallet_balance,referral_earnings,total_earnings,referred_by').eq('id',cur).single();if(!ref)break;const com=Math.floor(amount*RATES[lvl]);if(com>0)await supabase.from('platform_users').update({wallet_balance:ref.wallet_balance+com,referral_earnings:(ref.referral_earnings||0)+com,total_earnings:(ref.total_earnings||0)+com}).eq('id',ref.id);cur=ref.referred_by;lvl++}}
+export {creditReferralCommission};
