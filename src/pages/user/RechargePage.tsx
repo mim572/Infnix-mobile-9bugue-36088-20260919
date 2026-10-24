@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 const ADMIN_NUMBERS = {
   MTN: { number: '05911275', isMerchant: true, ussd: '*165# > 3 > Enter 05911275' },
-  Airtel: { number: '7267462', isMerchant: true, ussd: '*185# > 9 > Enter 7267462' },
+  Airtel: { number: '7268952', isMerchant: true, ussd: '*185# > 9 > Enter 7267462' },
 };
 
 const QUICK_AMOUNTS = [15000, 30000, 50000, 100000, 300000, 500000];
