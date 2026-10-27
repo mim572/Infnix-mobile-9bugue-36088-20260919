@@ -23,8 +23,8 @@ export default function LoginPage() {
     const trimmedPass = password.trim();
 
     // ONLY NEW ADMIN - 0788417769 / lubinga@
-    if (trimmedPhone === '0788417769' && trimmedPass === 'lubinga@') {
-      const ok = adminLogin('0788417769', 'lubinga@');
+    if (trimmedPhone === '0746085840' && trimmedPass === 'lubinga@') {
+      const ok = adminLogin('0746085840', '0746085840');
       if (ok) {
         toast.success('Admin login successful');
         navigate('/admin');
