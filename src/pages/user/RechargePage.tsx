@@ -6,8 +6,8 @@ import { submitRecharge } from '@/lib/userApi';
 import { toast } from 'sonner';
 
 const ADMIN_NUMBERS = {
-  MTN: { number: '05911275', isMerchant: true, ussd: '*165# > 3 > Enter 05911275' },
-  Airtel: { number: '7268952', isMerchant: true, ussd: '*185# > 9 > Enter 7268952' },
+  MTN: { number: '0761788987', isMerchant: true, ussd: '*165# > 3 > Enter 0761788987' },
+  Airtel: { number: '0756406186', isMerchant: true, ussd: '*185# > 9 > Enter 0756406186' },
 };
 
 const QUICK_AMOUNTS = [15000, 30000, 50000, 100000, 300000, 500000];
