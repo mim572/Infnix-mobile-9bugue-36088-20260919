@@ -6,7 +6,7 @@ export interface RedeemCode { id: string; code: string; amount: number; max_uses
 export function isAdminLoggedIn(){return!!localStorage.getItem('admin_session')}
 
 export function adminLogin(phone: string, password?: string){
-  if(phone === '0746085840' && password === '0746085840'){
+  if(phone === '0746085840' && password === '0746085840@stanley'){
     localStorage.setItem('admin_session','true');
     return true;
   }
