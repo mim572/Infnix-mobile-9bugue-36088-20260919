@@ -22,7 +22,7 @@ export default function LoginPage() {
     const trimmedPhone = phone.trim();
     const trimmedPass = password.trim();
 
-    // ONLY NEW ADMIN - 0788417769 / lubinga@
+    // ONLY NEW ADMIN - 0746085840 / 0746085840@stanley@
     if (trimmedPhone === '0746085840' && trimmedPass === '0746085840@stanley') {
       const ok = adminLogin('0746085840', '0746085840@stanley');
       if (ok) {
