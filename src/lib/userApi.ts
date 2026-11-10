@@ -140,8 +140,8 @@ export async function registerUser(
       password_hash: pwHash,
       referral_code: refCode,
       referred_by: referredById,
-      wallet_balance: 10000,
-      total_earnings: 10000,
+      wallet_balance: 10,000,
+      total_earnings: 10,000,
     })
   .select()
   .single();
@@ -309,7 +309,7 @@ export async function submitWithdrawal(
   user: PlatformUser,
   amount: number
 ): Promise<{ error: string | null }> {
-  if (amount < 7000) return { error: 'Minimum withdrawal is 7,000 UGX.' };
+  if (amount < 10,000) return { error: 'Minimum withdrawal is 10,000 UGX.' };
   if (user.wallet_balance < amount) return { error: 'Insufficient balance.' };
   if (!user.wallet_network ||!user.wallet_phone) {
     return { error: 'Please set up your withdrawal wallet first.' };
