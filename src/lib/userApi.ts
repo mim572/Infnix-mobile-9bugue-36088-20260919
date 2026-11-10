@@ -140,8 +140,8 @@ export async function registerUser(
       password_hash: pwHash,
       referral_code: refCode,
       referred_by: referredById,
-      wallet_balance: 7000,
-      total_earnings: 7000,
+      wallet_balance: 10000,
+      total_earnings: 10000,
     })
   .select()
   .single();
